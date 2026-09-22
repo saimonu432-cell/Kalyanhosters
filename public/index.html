@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KALYAN HOSTERS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: '#4f46e5', darkbg: '#0b0f17', cardbg: '#111827' } } } }
+    </script>
+</head>
+<body class="bg-darkbg text-gray-100 min-h-screen flex flex-col font-sans">
+    
+    <header class="p-4 bg-cardbg border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-xl font-bold tracking-wider">KALYAN <span class="text-[#4f46e5]">HOSTERS</span></h1>
+        <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-[#4f46e5] px-4 py-2 rounded text-sm text-white">Deploy Bot</button>
+    </header>
+
+    <main class="flex-grow p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto w-full">
+        <!-- Control Card -->
+        <div class="bg-cardbg p-5 rounded-xl border border-gray-800 h-fit">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 id="botName" class="font-bold text-lg">No Bot Uploaded</h3>
+                    <p id="botFile" class="text-xs text-gray-400">---</p>
+                </div>
+                <span id="badge" class="text-xs px-3 py-1 rounded bg-red-900/30 text-red-500 border border-red-800">STOPPED</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="startBot()" class="flex-1 py-2 bg-green-900/30 text-green-500 rounded border border-green-800 text-sm">Start</button>
+                <button onclick="stopBot()" class="flex-1 py-2 bg-red-900/30 text-red-500 rounded border border-red-800 text-sm">Stop</button>
+            </div>
+        </div>
+
+        <!-- Terminal Logs -->
+        <div class="lg:col-span-2 bg-cardbg border border-gray-800 rounded-xl flex flex-col h-[500px]">
+            <div class="p-3 border-b border-gray-800 flex justify-between text-xs text-gray-400 bg-gray-900 rounded-t-xl">
+                <span>Live Logs</span>
+                <button onclick="document.getElementById('terminal').innerHTML=''">Clear</button>
+            </div>
+            <div id="terminal" class="p-4 overflow-y-auto text-xs font-mono space-y-2 flex-grow text-gray-300 bg-[#080c14]">
+                <p class="text-blue-400">[SYSTEM] KALYAN HOSTERS Ready...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="p-4 bg-cardbg border-t border-gray-800 text-center text-sm text-gray-500 mt-auto">
+        Site Created by <span class="text-[#4f46e5] font-bold">Kalyan</span>
+    </footer>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50 p-4">
+        <form id="deployForm" class="bg-cardbg p-6 rounded-xl border border-gray-800 w-full max-w-md flex flex-col gap-4">
+            <h2 class="text-xl font-bold">Deploy New Script</h2>
+            <input id="inpName" required placeholder="Bot Name" class="bg-gray-900 p-2 rounded text-sm text-white outline-none border border-gray-700">
+            <input id="inpFile" required type="file" class="text-sm text-gray-400 bg-gray-900 p-2 rounded border border-gray-700">
+            <textarea id="inpEnv" placeholder="BOT_TOKEN=123..." rows="3" class="bg-gray-900 p-2 rounded text-sm outline-none border border-gray-700"></textarea>
+            <div class="flex gap-2 justify-end">
+                <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 bg-gray-800 rounded text-sm">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-[#4f46e5] text-white rounded text-sm">Upload & Start</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentFile = null;
+
+        socket.on('log', msg => {
+            const color = msg.includes('ERROR') || msg.includes('WARNING') ? 'text-red-400' : 
+                          msg.includes('SYSTEM') ? 'text-blue-400' : 'text-green-400';
+            const term = document.getElementById('terminal');
+            term.innerHTML += `<p class="${color}">${msg}</p>`;
+            term.scrollTop = term.scrollHeight;
+        });
+
+        socket.on('status', state => {
+            const badge = document.getElementById('badge');
+            if(state === 'running') { badge.className = 'text-xs px-3 py-1 rounded bg-green-900/30 text-green-500 border border-green-800'; badge.innerText = 'RUNNING'; }
+            else if(state === 'warning') { badge.className = 'text-xs px-3 py-1 rounded bg-yellow-900/30 text-yellow-500 border border-yellow-800'; badge.innerText = 'WAITING/WARN'; }
+            else { badge.className = 'text-xs px-3 py-1 rounded bg-red-900/30 text-red-500 border border-red-800'; badge.innerText = 'STOPPED'; }
+        });
+
+        document.getElementById('deployForm').onsubmit = async (e) => {
+            e.preventDefault();
+            document.getElementById('modal').classList.add('hidden');
+            const file = document.getElementById('inpFile').files[0];
+            currentFile = file.name;
+            document.getElementById('botName').innerText = document.getElementById('inpName').value;
+            document.getElementById('botFile').innerText = currentFile;
+
+            const form = new FormData();
+            form.append('botFile', file);
+            form.append('envData', document.getElementById('inpEnv').value);
+
+            socket.emit('log', `[SYSTEM] Uploading ${currentFile}...`);
+            await fetch('/deploy', { method: 'POST', body: form });
+            startBot();
+        };
+
+        const startBot = () => currentFile ? fetch('/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({filename: currentFile}) }) : alert("Deploy first!");
+        const stopBot = () => fetch('/stop', { method: 'POST' });
+    </script>
+</body>
+      </html>
+
