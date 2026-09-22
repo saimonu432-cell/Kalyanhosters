@@ -483,41 +483,66 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMainFile = null;
   let socket = null;
 
-  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  });
 
   ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { 
-    e.preventDefault(); dropzone.classList.add('drag'); 
+    e.preventDefault(); 
+    e.stopPropagation();
+    dropzone.classList.add('drag'); 
   }));
+  
   ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { 
-    e.preventDefault(); dropzone.classList.remove('drag'); 
+    e.preventDefault(); 
+    e.stopPropagation();
+    dropzone.classList.remove('drag'); 
   }));
 
   dropzone.addEventListener('drop', e => {
-    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      uploadFiles(e.dataTransfer.files);
+    }
   });
+
   fileInput.addEventListener('change', e => {
-    if (e.target.files.length) uploadFiles(e.target.files);
+    if (e.target.files && e.target.files.length > 0) {
+      uploadFiles(e.target.files);
+    }
   });
 
   async function uploadFiles(files) {
     const formData = new FormData();
-    for (let f of files) formData.append('files', f);
+    for (let f of files) {
+      formData.append('files', f);
+    }
 
     try {
+      log('Uploading bot files...', 'sys');
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         renderFiles(data.files, data.mainFile);
         log('Telegram Bot files uploaded successfully!', 'ok');
+      } else {
+        log('Upload failed: ' + (data.error || 'Unknown error'), 'err');
       }
     } catch (err) {
       log('File upload error: ' + err.message, 'err');
+    } finally {
+      fileInput.value = '';
     }
   }
 
   async function deleteFile(fileName) {
     try {
-      await fetch('/api/files/' + encodeURIComponent(fileName), { method: 'DELETE' });
+      const res = await fetch('/api/files/' + encodeURIComponent(fileName), { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        renderFiles(data.files, data.mainFile);
+        log(`File deleted: ${fileName}`, 'warn');
+      }
     } catch (err) {
       log('Delete file error: ' + err.message, 'err');
     }
@@ -539,10 +564,13 @@ document.addEventListener('DOMContentLoaded', () => {
       chip.innerHTML = `
         <span>${f.name.endsWith('.env') ? '⚙️' : '🤖'}</span>
         <span class="name" style="${isMain ? 'color:var(--amber); font-weight:bold;' : ''}">${f.name} ${isMain ? '(Main Bot File)' : ''}</span>
-        <span class="size">${f.size}</span>
-        <button title="Delete File">✕</button>
+        <span class="size">${f.size || ''}</span>
+        <button type="button" title="Delete File">✕</button>
       `;
-      chip.querySelector('button').addEventListener('click', () => deleteFile(f.name));
+      chip.querySelector('button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteFile(f.name);
+      });
       filePreviewList.appendChild(chip);
     });
   }
@@ -563,23 +591,4 @@ document.addEventListener('DOMContentLoaded', () => {
     isBotRunning = running;
     if (running) {
       statusPill.className = 'status-pill status-running';
-      statusPill.innerHTML = '<span class="dot"></span>Bot Active';
-      deployBtn.disabled = true;
-      stopBtn.disabled = false;
-    } else {
-      statusPill.className = 'status-pill status-stopped';
-      statusPill.innerHTML = '<span class="dot"></span>Bot Stopped';
-      deployBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
-  }
-
-  try {
-    if (typeof io !== 'undefined') {
-      socket = io();
-
-      socket.on('init-state', (data) => {
-        if (data.files) renderFiles(data.files, data.state?.mainFile);
-        setStatus(data.isRunning);
-        consoleEl.innerHTML = '';
-        if (data.logs) data.logs.forEach(l => log(l.text,
+      statusPill.innerHTML = '<span c
