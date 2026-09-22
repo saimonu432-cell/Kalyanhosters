@@ -1,108 +1,600 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KALYAN HOSTERS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: '#4f46e5', darkbg: '#0b0f17', cardbg: '#111827' } } } }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KALYAN HOSTERS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #12151a;
+    --panel-2: #171b21;
+    --border: #232830;
+    --text: #e7ebf0;
+    --text-dim: #8b93a1;
+    --amber: #f2a93b;
+    --amber-dim: #6b5424;
+    --green: #35d07f;
+    --green-dim: #163d29;
+    --yellow: #f2c94c;
+    --yellow-dim: #4a3f16;
+    --red: #ef5b5b;
+    --red-dim: #431e1e;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Space Grotesk', system-ui, sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f2ee;
+      --panel: #ffffff;
+      --panel-2: #f0eee9;
+      --border: #ddd8cf;
+      --text: #16181c;
+      --text-dim: #6a6a6a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(242,169,59,0.08), transparent 40%),
+      radial-gradient(circle at 85% 20%, rgba(53,208,127,0.07), transparent 45%),
+      radial-gradient(circle at 50% 100%, rgba(242,169,59,0.04), transparent 50%);
+    background-size: 200% 200%;
+    animation: bgdrift 18s ease-in-out infinite;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(242,169,59,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(242,169,59,0.05) 1px, transparent 1px);
+    background-size: 42px 42px;
+    animation: gridmove 22s linear infinite;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.015) 0px,
+      rgba(255,255,255,0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    opacity: 0.4;
+  }
+  header.top, main, footer.site-footer { position: relative; z-index: 2; }
+  @keyframes gridmove {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 42px 42px, 42px 42px; }
+  }
+  @keyframes neonFlicker {
+    0%, 100% { text-shadow: 0 0 4px rgba(242,169,59,0.5), 0 0 14px rgba(242,169,59,0.35), 0 0 28px rgba(242,169,59,0.15); }
+    50% { text-shadow: 0 0 6px rgba(242,169,59,0.75), 0 0 20px rgba(242,169,59,0.5), 0 0 40px rgba(242,169,59,0.25); }
+  }
+  @keyframes borderRotate {
+    to { --angle: 360deg; }
+  }
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+  @keyframes bgdrift {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 100% 60%; }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes spin360 {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(242,169,59,0.3); }
+    50% { box-shadow: 0 0 0 7px rgba(242,169,59,0); }
+  }
+  @keyframes blinkCursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+  }
+
+  header.top {
+    position: sticky;
+    top: 0;
+    padding: env(safe-area-inset-top, 0px) 0 0;
+    z-index: 20;
+    background: rgba(11,13,16,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .top-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--amber), #d6871f);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-family: var(--mono); color: #1a1200;
+    font-size: 15px;
+    flex-shrink: 0;
+    animation: floaty 3.2s ease-in-out infinite, glowPulse 2.6s ease-in-out infinite;
+    position: relative;
+  }
+  .brand-mark::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 12px;
+    border: 1px solid rgba(242,169,59,0.4);
+    animation: spin360 5s linear infinite;
+  }
+  .brand-name {
+    font-weight: 700; font-size: 18px; letter-spacing: 0.04em;
+    color: var(--amber);
+    animation: neonFlicker 3s ease-in-out infinite;
+    text-transform: uppercase;
+  }
+  .brand-sub { font-size: 11px; color: var(--text-dim); font-family: var(--mono); margin-top: -2px; }
+  .pulse-badge {
+    display: flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    border: 1px solid var(--border); padding: 6px 11px; border-radius: 20px;
+    background: var(--panel);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .dot.live { animation: livepulse 1.6s ease-in-out infinite; }
+  @keyframes livepulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(53,208,127,0.5); }
+    50% { box-shadow: 0 0 0 5px rgba(53,208,127,0); }
+  }
+
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 36px 20px 80px;
+  }
+
+  .hero { margin-bottom: 30px; animation: fadeUp 0.6s ease both; }
+  .hero h1 {
+    font-size: clamp(26px, 4vw, 36px);
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    background: linear-gradient(100deg, var(--text) 40%, var(--amber) 50%, var(--text) 60%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 5s linear infinite;
+  }
+  .hero p { color: var(--text-dim); margin: 0; max-width: 60ch; font-size: 15px; line-height: 1.6; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 860px) {
+    .grid { grid-template-columns: 380px 1fr; align-items: start; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transition: border-color 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    isolation: isolate;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 15px;
+    padding: 1px;
+    background: conic-gradient(from var(--angle), transparent 0%, rgba(242,169,59,0.55) 12%, transparent 26%, transparent 74%, rgba(53,208,127,0.4) 88%, transparent 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: -1;
+    animation: borderRotate 6s linear infinite;
+    opacity: 0.7;
+  }
+  .card:hover { border-color: #3a3f48; transform: translateY(-2px); }
+  .grid .card:nth-child(2) { animation-delay: 0.12s; }
+  .card h2 {
+    font-size: 13px;
+    text-transform: none;
+    margin: 0 0 16px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+
+  label.field-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 22px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    margin-bottom: 16px;
+    background: var(--panel-2);
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--amber); background: rgba(242,169,59,0.05); }
+  .dropzone svg { opacity: 0.6; margin-bottom: 6px; }
+  .dropzone .dz-main { font-size: 13.5px; }
+  .dropzone .dz-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; font-family: var(--mono); }
+
+  .file-list-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .file-chip {
+    display: flex;
+    align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 8px;
+  }
+  .file-chip .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip .size { color: var(--text-dim); font-size: 11px; }
+  .file-chip button {
+    background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; padding: 0 2px;
+  }
+
+  textarea#envInput {
+    width: 100%;
+    min-height: 92px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 12px;
+    resize: vertical;
+    margin-bottom: 6px;
+    line-height: 1.6;
+  }
+  textarea#envInput:focus { outline: none; border-color: var(--amber); }
+  .hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 16px; }
+
+  .action-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .deploy-btn {
+    width: 100%;
+    background: linear-gradient(100deg, var(--amber) 0%, #ffcf7a 50%, var(--amber) 100%);
+    background-size: 220% 100%;
+    color: #1a1200;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+  }
+  .deploy-btn:hover { filter: brightness(1.08); }
+  .deploy-btn:active { transform: scale(0.98); }
+  .deploy-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+  .stop-btn {
+    width: 100%;
+    background: rgba(239, 91, 91, 0.15);
+    border: 1px solid var(--red-dim);
+    color: var(--red);
+    padding: 13px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: background 0.2s ease;
+  }
+  .stop-btn:hover { background: rgba(239, 91, 91, 0.25); }
+  .stop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Console Styling */
+  .console-card { display: flex; flex-direction: column; min-height: 440px; }
+  .console-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+  .status-pill .dot { width: 8px; height: 8px; }
+  .status-pill.status-idle { color: var(--text-dim); }
+  .status-pill.status-running { color: var(--green); background: rgba(53,208,127,0.08); border-color: var(--green-dim); }
+  .status-pill.status-stopped { color: var(--red); background: rgba(239,91,91,0.08); border-color: var(--red-dim); }
+
+  .console {
+    flex: 1;
+    background: #07090b;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    overflow-y: auto;
+    max-height: 360px;
+  }
+  .console .ln { white-space: pre-wrap; word-break: break-word; }
+  .console .ln .t { color: #4c5561; margin-right: 8px; }
+  .console .ln.info { color: #b7bfc9; }
+  .console .ln.ok { color: var(--green); }
+  .console .ln.warn { color: var(--yellow); }
+  .console .ln.err { color: var(--red); }
+  .console .ln.sys { color: var(--amber); }
+
+  .clear-btn {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 4px 10px; border-radius: 6px; font-family: var(--mono); font-size: 11px; cursor: pointer;
+  }
+  .clear-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  footer.site-footer { border-top: 1px solid var(--border); background: rgba(18,21,26,0.7); }
+  .footer-bottom {
+    max-width: 1080px; margin: 0 auto; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text-dim); font-family: var(--mono);
+  }
+  .footer-bottom b { color: var(--amber); }
+</style>
 </head>
-<body class="bg-darkbg text-gray-100 min-h-screen flex flex-col font-sans">
-    
-    <header class="p-4 bg-cardbg border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
-        <h1 class="text-xl font-bold tracking-wider">KALYAN <span class="text-[#4f46e5]">HOSTERS</span></h1>
-        <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-[#4f46e5] px-4 py-2 rounded text-sm text-white">Deploy Bot</button>
-    </header>
+<body>
 
-    <main class="flex-grow p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto w-full">
-        <!-- Control Card -->
-        <div class="bg-cardbg p-5 rounded-xl border border-gray-800 h-fit">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h3 id="botName" class="font-bold text-lg">No Bot Uploaded</h3>
-                    <p id="botFile" class="text-xs text-gray-400">---</p>
-                </div>
-                <span id="badge" class="text-xs px-3 py-1 rounded bg-red-900/30 text-red-500 border border-red-800">STOPPED</span>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="startBot()" class="flex-1 py-2 bg-green-900/30 text-green-500 rounded border border-green-800 text-sm">Start</button>
-                <button onclick="stopBot()" class="flex-1 py-2 bg-red-900/30 text-red-500 rounded border border-red-800 text-sm">Stop</button>
-            </div>
-        </div>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-mark">KH</div>
+      <div>
+        <div class="brand-name">KALYAN HOSTERS</div>
+        <div class="brand-sub">real hosting panel</div>
+      </div>
+    </div>
+    <div class="pulse-badge"><span class="dot live"></span>Live System Online</div>
+  </div>
+</header>
 
-        <!-- Terminal Logs -->
-        <div class="lg:col-span-2 bg-cardbg border border-gray-800 rounded-xl flex flex-col h-[500px]">
-            <div class="p-3 border-b border-gray-800 flex justify-between text-xs text-gray-400 bg-gray-900 rounded-t-xl">
-                <span>Live Logs</span>
-                <button onclick="document.getElementById('terminal').innerHTML=''">Clear</button>
-            </div>
-            <div id="terminal" class="p-4 overflow-y-auto text-xs font-mono space-y-2 flex-grow text-gray-300 bg-[#080c14]">
-                <p class="text-blue-400">[SYSTEM] KALYAN HOSTERS Ready...</p>
-            </div>
-        </div>
-    </main>
+<main>
+  <div class="hero">
+    <h1>Deploy your Node.js Bot instantly.</h1>
+    <p>Upload your bot files, configure environment variables, and monitor terminal outputs in real-time.</p>
+  </div>
 
-    <footer class="p-4 bg-cardbg border-t border-gray-800 text-center text-sm text-gray-500 mt-auto">
-        Site Created by <span class="text-[#4f46e5] font-bold">Kalyan</span>
-    </footer>
+  <div class="grid">
+    <!-- LEFT: Upload & Deploy Card -->
+    <div class="card">
+      <h2>Bot Management</h2>
 
-    <!-- Modal -->
-    <div id="modal" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50 p-4">
-        <form id="deployForm" class="bg-cardbg p-6 rounded-xl border border-gray-800 w-full max-w-md flex flex-col gap-4">
-            <h2 class="text-xl font-bold">Deploy New Script</h2>
-            <input id="inpName" required placeholder="Bot Name" class="bg-gray-900 p-2 rounded text-sm text-white outline-none border border-gray-700">
-            <input id="inpFile" required type="file" class="text-sm text-gray-400 bg-gray-900 p-2 rounded border border-gray-700">
-            <textarea id="inpEnv" placeholder="BOT_TOKEN=123..." rows="3" class="bg-gray-900 p-2 rounded text-sm outline-none border border-gray-700"></textarea>
-            <div class="flex gap-2 justify-end">
-                <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 bg-gray-800 rounded text-sm">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-[#4f46e5] text-white rounded text-sm">Upload & Start</button>
-            </div>
-        </form>
+      <label class="field-label">UPLOAD BOT FILES (.js, .env, .json)</label>
+      <div class="dropzone" id="dropzone">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 02 2h12a2 2 0 002-2v-3"/></svg>
+        <div class="dz-main">Click or drop files here</div>
+        <div class="dz-sub">bot.js · .env · package.json</div>
+      </div>
+      <input type="file" id="fileInput" multiple style="display:none">
+
+      <label class="field-label">UPLOADED FILES PREVIEW</label>
+      <div class="file-list-preview" id="filePreviewList">
+        <div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No files uploaded yet</div>
+      </div>
+
+      <label class="field-label">ENVIRONMENT VARIABLES</label>
+      <textarea id="envInput" placeholder="BOT_TOKEN=123456:ABC...&#10;OWNER_ID=98765432"></textarea>
+      <p class="hint">Upload a <code>.env</code> file or enter key-value pairs manually above.</p>
+
+      <div class="action-btns">
+        <button class="deploy-btn" id="deployBtn">Start Bot</button>
+        <button class="stop-btn" id="stopBtn" disabled>Stop Bot</button>
+      </div>
     </div>
 
-    <script>
-        const socket = io();
-        let currentFile = null;
+    <!-- RIGHT: Real Console Logs -->
+    <div class="card console-card">
+      <div class="console-head">
+        <h2>
+          <span>Live Console</span>
+          <button class="clear-btn" id="clearBtn">Clear</button>
+        </h2>
+        <span class="status-pill status-idle" id="statusPill"><span class="dot"></span>Stopped</span>
+      </div>
+      <div class="console" id="console"></div>
+    </div>
+  </div>
+</main>
 
-        socket.on('log', msg => {
-            const color = msg.includes('ERROR') || msg.includes('WARNING') ? 'text-red-400' : 
-                          msg.includes('SYSTEM') ? 'text-blue-400' : 'text-green-400';
-            const term = document.getElementById('terminal');
-            term.innerHTML += `<p class="${color}">${msg}</p>`;
-            term.scrollTop = term.scrollHeight;
-        });
+<footer class="site-footer">
+  <div class="footer-bottom">
+    <span>Created by <b>Kalyan</b></span>
+    <span>KALYAN HOSTERS © 2026</span>
+  </div>
+</footer>
 
-        socket.on('status', state => {
-            const badge = document.getElementById('badge');
-            if(state === 'running') { badge.className = 'text-xs px-3 py-1 rounded bg-green-900/30 text-green-500 border border-green-800'; badge.innerText = 'RUNNING'; }
-            else if(state === 'warning') { badge.className = 'text-xs px-3 py-1 rounded bg-yellow-900/30 text-yellow-500 border border-yellow-800'; badge.innerText = 'WAITING/WARN'; }
-            else { badge.className = 'text-xs px-3 py-1 rounded bg-red-900/30 text-red-500 border border-red-800'; badge.innerText = 'STOPPED'; }
-        });
+<script>
+(function () {
+  const socket = io();
 
-        document.getElementById('deployForm').onsubmit = async (e) => {
-            e.preventDefault();
-            document.getElementById('modal').classList.add('hidden');
-            const file = document.getElementById('inpFile').files[0];
-            currentFile = file.name;
-            document.getElementById('botName').innerText = document.getElementById('inpName').value;
-            document.getElementById('botFile').innerText = currentFile;
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const filePreviewList = document.getElementById('filePreviewList');
+  const envInput = document.getElementById('envInput');
+  const deployBtn = document.getElementById('deployBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const consoleEl = document.getElementById('console');
+  const statusPill = document.getElementById('statusPill');
 
-            const form = new FormData();
-            form.append('botFile', file);
-            form.append('envData', document.getElementById('inpEnv').value);
+  let isBotRunning = false;
+  let currentMainFile = null;
 
-            socket.emit('log', `[SYSTEM] Uploading ${currentFile}...`);
-            await fetch('/deploy', { method: 'POST', body: form });
-            startBot();
-        };
+  // Drag Drop Handlers
+  dropzone.addEventListener('click', () => fileInput.click());
+  ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  
+  dropzone.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files.length) uploadFiles(e.target.files);
+  });
 
-        const startBot = () => currentFile ? fetch('/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({filename: currentFile}) }) : alert("Deploy first!");
-        const stopBot = () => fetch('/stop', { method: 'POST' });
-    </script>
-</body>
-      </html>
+  async function uploadFiles(files) {
+    const formData = new FormData();
+    for (let f of files) formData.append('files', f);
 
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        renderFiles(data.files, data.mainFile);
+      }
+    } catch (err) {
+      log('File upload error: ' + err.message, 'err');
+    }
+  }
+
+  async function deleteFile(fileName) {
+    try {
+      await fetch('/api/files/' + encodeURIComponent(fileName), { method: 'DELETE' });
+    } catch (err) {
+      log('Delete file error: ' + err.message, 'err');
+    }
+  }
+
+  function renderFiles(files, mainFile) {
+    filePreviewList.innerHTML = '';
+    currentMainFile = mainFile;
+
+    if (!files || files.length === 0) {
+      filePreviewList.innerHTML = '<div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No files uploaded</div>';
+      return;
+    }
+
+    files.forEach(f => {
+      const isMain = f.name === mainFile;
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = `
+        <span>${f.name.endsWith('.env') ? '⚙️' : '📄'}</span>
+        <span class="name" style="${isMain ? 'color:var(--amber); font-weight:bold;' : ''}">${f.name} ${isMain ? '(Main)' : ''}</span>
+        <span class="size">${f.size}</span>
+        <button title="Delete File">✕</button>
+      `;
+      chip.querySelector('button').addEventListener('click', () => deleteFile(f.name));
+      filePreviewList.appendChild(chip);
+    });
+  }
+
+  function log(text, type = 'info', time = null) {
+    const row = document.createElement('div');
+    row.className = 'ln ' + type;
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 't';
+    timeSpan.textContent = time || new Date().toTimeString().slice(0,8);
+    row.appendChild(timeSpan);
+    row.appendChild(document.createTextNode(text));
+    consoleEl.appendChild(row);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  function setStatus(running) {
+    isBotRunning = running;
+    if (running) {
+      statusPill.className = 'status-pill status-running';
+      statusPill.innerHTML = '<span class="dot"></span>Running';
+      deployBtn.disabled = true;
+      stopBtn.disabled = false;
+    } else {
+      statusPill.className = 'status-pill status-stopped';
+      statusPill.innerHTML = '<span class="dot"></span>Stopped';
+      deployBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  }
+
+  // Socket Events
+  socket.on('init-state', (data) => {
+    renderFiles(data.files, data.state.mainFile);
+    setStatus(data.isRunning);
+    consoleEl.innerHTML = '';
+    data.logs.forEach(l => log(l.text, l.type, l.time));
+  });
+
+  socket.on('files-updated', (data) => {
+    renderFiles(data.files, data.state.mainFile);
+  });
+
+  socket.on('bot-log', (l) => {
+    log(l.text, l.type, l.time);
+  });
+
+  socket.on('status-change', (data) => {
+    setStatus(data.isRunning);
+  });
+
+  socket.on('logs-cleared', () => {
+    consoleEl.i
