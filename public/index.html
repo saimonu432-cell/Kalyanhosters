@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>KALYAN HOSTERS</title>
+<title>KALYAN HOSTERS - Telegram Bot Host</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="/socket.io/socket.io.js"></script>
+<!-- Socket.io CDN Fallback -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <style>
   :root {
     --bg: #0b0d10;
@@ -127,10 +128,6 @@
   @keyframes glowPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(242,169,59,0.3); }
     50% { box-shadow: 0 0 0 7px rgba(242,169,59,0); }
-  }
-  @keyframes blinkCursor {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.15; }
   }
 
   header.top {
@@ -332,7 +329,7 @@
     font-size: 14px;
     cursor: pointer;
     font-family: var(--sans);
-    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+    transition: transform 0.15s ease, filter 0.25s ease;
   }
   .deploy-btn:hover { filter: brightness(1.08); }
   .deploy-btn:active { transform: scale(0.98); }
@@ -354,7 +351,6 @@
   .stop-btn:hover { background: rgba(239, 91, 91, 0.25); }
   .stop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* Console Styling */
   .console-card { display: flex; flex-direction: column; min-height: 440px; }
   .console-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .status-pill {
@@ -411,52 +407,50 @@
       <div class="brand-mark">KH</div>
       <div>
         <div class="brand-name">KALYAN HOSTERS</div>
-        <div class="brand-sub">real hosting panel</div>
+        <div class="brand-sub">Telegram Bot Hosting Panel</div>
       </div>
     </div>
-    <div class="pulse-badge"><span class="dot live"></span>Live System Online</div>
+    <div class="pulse-badge"><span class="dot live"></span>Telegram Server Online</div>
   </div>
 </header>
 
 <main>
   <div class="hero">
-    <h1>Deploy your Node.js Bot instantly.</h1>
-    <p>Upload your bot files, configure environment variables, and monitor terminal outputs in real-time.</p>
+    <h1>Deploy your Telegram Bot instantly.</h1>
+    <p>Upload your Python or Node.js Telegram Bot files, enter your bot token and keys, and view live logs in real-time.</p>
   </div>
 
   <div class="grid">
-    <!-- LEFT: Upload & Deploy Card -->
     <div class="card">
-      <h2>Bot Management</h2>
+      <h2>Telegram Bot Setup</h2>
 
-      <label class="field-label">UPLOAD BOT FILES (.js, .env, .json)</label>
+      <label class="field-label">UPLOAD TELEGRAM BOT FILES</label>
       <div class="dropzone" id="dropzone">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 02 2h12a2 2 0 002-2v-3"/></svg>
-        <div class="dz-main">Click or drop files here</div>
-        <div class="dz-sub">bot.js · .env · package.json</div>
+        <div class="dz-main">📤 Send your Python (<code>.py</code>), JS (<code>.js</code>), or ZIP (<code>.zip</code>) file.</div>
+        <div class="dz-sub">Click or drag & drop Telegram bot files here</div>
       </div>
-      <input type="file" id="fileInput" multiple style="display:none">
+      <input type="file" id="fileInput" accept=".py,.js,.zip,.env,.json" multiple style="display:none">
 
-      <label class="field-label">UPLOADED FILES PREVIEW</label>
+      <label class="field-label">BOT FILES PREVIEW</label>
       <div class="file-list-preview" id="filePreviewList">
-        <div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No files uploaded yet</div>
+        <div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No bot files uploaded yet</div>
       </div>
 
-      <label class="field-label">ENVIRONMENT VARIABLES</label>
-      <textarea id="envInput" placeholder="BOT_TOKEN=123456:ABC...&#10;OWNER_ID=98765432"></textarea>
-      <p class="hint">Upload a <code>.env</code> file or enter key-value pairs manually above.</p>
+      <label class="field-label">ENVIRONMENT VARIABLES & TELEGRAM KEYS</label>
+      <textarea id="envInput" placeholder="BOT_TOKEN=123456789:AAFg8xXYZ...&#10;OWNER_ID=987654321&#10;API_ID=12345&#10;API_HASH=abcdef123456"></textarea>
+      <p class="hint">Paste your Telegram <code>BOT_TOKEN</code> and config variables above or upload a <code>.env</code> file.</p>
 
       <div class="action-btns">
-        <button class="deploy-btn" id="deployBtn">Start Bot</button>
+        <button class="deploy-btn" id="deployBtn">Start Telegram Bot</button>
         <button class="stop-btn" id="stopBtn" disabled>Stop Bot</button>
       </div>
     </div>
 
-    <!-- RIGHT: Real Console Logs -->
     <div class="card console-card">
       <div class="console-head">
         <h2>
-          <span>Live Console</span>
+          <span>Live Bot Console</span>
           <button class="clear-btn" id="clearBtn">Clear</button>
         </h2>
         <span class="status-pill status-idle" id="statusPill"><span class="dot"></span>Stopped</span>
@@ -474,9 +468,7 @@
 </footer>
 
 <script>
-(function () {
-  const socket = io();
-
+document.addEventListener('DOMContentLoaded', () => {
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
   const filePreviewList = document.getElementById('filePreviewList');
@@ -489,12 +481,17 @@
 
   let isBotRunning = false;
   let currentMainFile = null;
+  let socket = null;
 
-  // Drag Drop Handlers
   dropzone.addEventListener('click', () => fileInput.click());
-  ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
-  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-  
+
+  ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { 
+    e.preventDefault(); dropzone.classList.add('drag'); 
+  }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { 
+    e.preventDefault(); dropzone.classList.remove('drag'); 
+  }));
+
   dropzone.addEventListener('drop', e => {
     if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
   });
@@ -511,6 +508,7 @@
       const data = await res.json();
       if (data.success) {
         renderFiles(data.files, data.mainFile);
+        log('Telegram Bot files uploaded successfully!', 'ok');
       }
     } catch (err) {
       log('File upload error: ' + err.message, 'err');
@@ -530,7 +528,7 @@
     currentMainFile = mainFile;
 
     if (!files || files.length === 0) {
-      filePreviewList.innerHTML = '<div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No files uploaded</div>';
+      filePreviewList.innerHTML = '<div style="font-size:12px; color:var(--text-dim); font-family:var(--mono);">No bot files uploaded</div>';
       return;
     }
 
@@ -539,8 +537,8 @@
       const chip = document.createElement('div');
       chip.className = 'file-chip';
       chip.innerHTML = `
-        <span>${f.name.endsWith('.env') ? '⚙️' : '📄'}</span>
-        <span class="name" style="${isMain ? 'color:var(--amber); font-weight:bold;' : ''}">${f.name} ${isMain ? '(Main)' : ''}</span>
+        <span>${f.name.endsWith('.env') ? '⚙️' : '🤖'}</span>
+        <span class="name" style="${isMain ? 'color:var(--amber); font-weight:bold;' : ''}">${f.name} ${isMain ? '(Main Bot File)' : ''}</span>
         <span class="size">${f.size}</span>
         <button title="Delete File">✕</button>
       `;
@@ -565,36 +563,23 @@
     isBotRunning = running;
     if (running) {
       statusPill.className = 'status-pill status-running';
-      statusPill.innerHTML = '<span class="dot"></span>Running';
+      statusPill.innerHTML = '<span class="dot"></span>Bot Active';
       deployBtn.disabled = true;
       stopBtn.disabled = false;
     } else {
       statusPill.className = 'status-pill status-stopped';
-      statusPill.innerHTML = '<span class="dot"></span>Stopped';
+      statusPill.innerHTML = '<span class="dot"></span>Bot Stopped';
       deployBtn.disabled = false;
       stopBtn.disabled = true;
     }
   }
 
-  // Socket Events
-  socket.on('init-state', (data) => {
-    renderFiles(data.files, data.state.mainFile);
-    setStatus(data.isRunning);
-    consoleEl.innerHTML = '';
-    data.logs.forEach(l => log(l.text, l.type, l.time));
-  });
+  try {
+    if (typeof io !== 'undefined') {
+      socket = io();
 
-  socket.on('files-updated', (data) => {
-    renderFiles(data.files, data.state.mainFile);
-  });
-
-  socket.on('bot-log', (l) => {
-    log(l.text, l.type, l.time);
-  });
-
-  socket.on('status-change', (data) => {
-    setStatus(data.isRunning);
-  });
-
-  socket.on('logs-cleared', () => {
-    consoleEl.i
+      socket.on('init-state', (data) => {
+        if (data.files) renderFiles(data.files, data.state?.mainFile);
+        setStatus(data.isRunning);
+        consoleEl.innerHTML = '';
+        if (data.logs) data.logs.forEach(l => log(l.text,
