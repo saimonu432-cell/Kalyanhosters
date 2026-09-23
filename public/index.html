@@ -260,7 +260,9 @@
     font-family: var(--mono);
   }
 
-  .dropzone {
+  /* Native Label as Dropzone to guarantee File Manager opening */
+  label.dropzone {
+    display: block;
     border: 1.5px dashed var(--border);
     border-radius: 10px;
     padding: 22px 14px;
@@ -270,10 +272,10 @@
     margin-bottom: 16px;
     background: var(--panel-2);
   }
-  .dropzone:hover, .dropzone.drag { border-color: var(--amber); background: rgba(242,169,59,0.05); }
-  .dropzone svg { opacity: 0.6; margin-bottom: 6px; }
-  .dropzone .dz-main { font-size: 13.5px; }
-  .dropzone .dz-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; font-family: var(--mono); }
+  label.dropzone:hover, label.dropzone.drag { border-color: var(--amber); background: rgba(242,169,59,0.05); }
+  label.dropzone svg { opacity: 0.6; margin-bottom: 6px; }
+  label.dropzone .dz-main { font-size: 13.5px; }
+  label.dropzone .dz-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; font-family: var(--mono); }
 
   .file-list-preview {
     display: flex;
@@ -425,11 +427,13 @@
       <h2>Telegram Bot Setup</h2>
 
       <label class="field-label">UPLOAD TELEGRAM BOT FILES</label>
-      <div class="dropzone" id="dropzone">
+      
+      <!-- Native Label directly attached to fileInput so File Manager MUST open on click -->
+      <label for="fileInput" class="dropzone" id="dropzone">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 02 2h12a2 2 0 002-2v-3"/></svg>
-        <div class="dz-main">📤 Send your Python (<code>.py</code>), JS (<code>.js</code>), or ZIP (<code>.zip</code>) file.</div>
-        <div class="dz-sub">Click or drag & drop Telegram bot files here</div>
-      </div>
+        <div class="dz-main">📤 Click to open File Manager or Drag & Drop (.py, .js, .zip, .env)</div>
+        <div class="dz-sub">Click here to select bot files from your device</div>
+      </label>
       <input type="file" id="fileInput" accept=".py,.js,.zip,.env,.json" multiple style="display:none">
 
       <label class="field-label">BOT FILES PREVIEW</label>
@@ -483,11 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMainFile = null;
   let socket = null;
 
-  dropzone.addEventListener('click', (e) => {
-    e.stopPropagation();
-    fileInput.click();
-  });
-
+  // Drag & Drop handling
   ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { 
     e.preventDefault(); 
     e.stopPropagation();
@@ -506,6 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // When File Manager selects files
   fileInput.addEventListener('change', e => {
     if (e.target.files && e.target.files.length > 0) {
       uploadFiles(e.target.files);
@@ -531,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       log('File upload error: ' + err.message, 'err');
     } finally {
-      fileInput.value = '';
+      fileInput.value = ''; // Reset input to allow re-uploading the same file
     }
   }
 
@@ -591,4 +592,80 @@ document.addEventListener('DOMContentLoaded', () => {
     isBotRunning = running;
     if (running) {
       statusPill.className = 'status-pill status-running';
-      statusPill.innerHTML = '<span c
+      statusPill.innerHTML = '<span class="dot"></span>Bot Active';
+      deployBtn.disabled = true;
+      stopBtn.disabled = false;
+    } else {
+      statusPill.className = 'status-pill status-stopped';
+      statusPill.innerHTML = '<span class="dot"></span>Bot Stopped';
+      deployBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  }
+
+  try {
+    if (typeof io !== 'undefined') {
+      socket = io();
+
+      socket.on('init-state', (data) => {
+        if (data.files) renderFiles(data.files, data.state?.mainFile);
+        setStatus(data.isRunning);
+        consoleEl.innerHTML = '';
+        if (data.logs) data.logs.forEach(l => log(l.text, l.type, l.time));
+      });
+
+      socket.on('files-updated', (data) => {
+        renderFiles(data.files, data.state?.mainFile);
+      });
+
+      socket.on('bot-log', (l) => {
+        log(l.text, l.type, l.time);
+      });
+
+      socket.on('status-change', (data) => {
+        setStatus(data.isRunning);
+      });
+
+      socket.on('logs-cleared', () => {
+        consoleEl.innerHTML = '';
+      });
+    } else {
+      log('⚠️ Socket.io client script not found.', 'warn');
+    }
+  } catch (err) {
+    log('Socket Connection Error: ' + err.message, 'err');
+  }
+
+  deployBtn.addEventListener('click', () => {
+    if (socket) {
+      socket.emit('deploy-bot', {
+        mainFile: currentMainFile,
+        envText: envInput.value
+      });
+      log('Starting Telegram bot deployment...', 'sys');
+    } else {
+      log('❌ Server not connected via Socket.', 'err');
+    }
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if (socket) {
+      socket.emit('stop-bot');
+      log('Sending stop signal to bot...', 'warn');
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (socket) socket.emit('clear-logs');
+    else consoleEl.innerHTML = '';
+  });
+
+  fetch('/api/files')
+    .then(r => r.json())
+    .then(d => renderFiles(d.files, d.state?.mainFile))
+    .catch(() => {});
+});
+</script>
+
+</body>
+</html>
