@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const AdmZip = require('adm-zip');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,7 +56,28 @@ function detectMainFile() {
   return py ? py.name : (js ? js.name : null);
 }
 
+// Upload Route with Auto Zip Extraction
 app.post('/api/upload', upload.array('files'), (req, res) => {
+  try {
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        if (file.originalname.toLowerCase().endsWith('.zip')) {
+          try {
+            const zipPath = path.join(UPLOAD_DIR, file.originalname);
+            const zip = new AdmZip(zipPath);
+            zip.extractAllTo(UPLOAD_DIR, true);
+            fs.unlinkSync(zipPath);
+            addLog(`📦 Auto-extracted ZIP: ${file.originalname}`, 'sys');
+          } catch (zipErr) {
+            addLog(`❌ ZIP extraction error: ${zipErr.message}`, 'err');
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Upload error:", err.message);
+  }
+
   mainBotFile = detectMainFile();
   const files = getUploadedFiles();
   io.emit('files-updated', { files, state: { mainFile: mainBotFile } });
@@ -67,7 +89,6 @@ app.get('/api/files', (req, res) => {
   res.json({ files: getUploadedFiles(), state: { mainFile: mainBotFile } });
 });
 
-// FIXED: Handles both single files and sub-folders cleanly
 app.delete('/api/files/:name', (req, res) => {
   try {
     const filePath = path.join(UPLOAD_DIR, req.params.name);
@@ -107,7 +128,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Set PYTHONUNBUFFERED=1 for instant output & PORT=8081 to avoid Flask conflict
     const envVars = { ...process.env, PYTHONUNBUFFERED: "1", PORT: "8081" };
 
     if (envText) {
@@ -181,4 +201,3 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server started on port ${PORT}`);
 });
-         
