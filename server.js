@@ -1,220 +1,165 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const fs = require('fs-extra');
-const path = require('path');
-const { spawn } = require('child_process');
 const multer = require('multer');
-const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 8080;
+// Upload directory setup
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
-const DATA_FILE = path.join(__dirname, 'bot_state.json');
-
 if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-    filename: (req, file, cb) => cb(null, file.originalname)
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => cb(null, file.originalname)
 });
 const upload = multer({ storage });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-let runningProcess = null;
-let logHistory = [];
-let botState = loadState();
+let activeProcess = null;
+let mainBotFile = null;
+let logsHistory = [];
 
-function loadState() {
-    if (fs.existsSync(DATA_FILE)) {
-        try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
-    }
-    return { mainFile: null, envVars: {} };
+// Console logs maintain karne ke liye
+function addLog(text, type = 'info') {
+  const time = new Date().toTimeString().slice(0, 8);
+  const logObj = { text, type, time };
+  logsHistory.push(logObj);
+  if (logsHistory.length > 200) logsHistory.shift();
+  io.emit('bot-log', logObj);
 }
 
-function saveState(data) {
-    botState = { ...botState, ...data };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(botState, null, 2));
-}
-
-function addLog(msg, type = 'info') {
-    const timestamp = new Date().toTimeString().slice(0, 8);
-    const logObj = { time: timestamp, text: msg, type };
-    logHistory.push(logObj);
-    if (logHistory.length > 400) logHistory.shift();
-    io.emit('bot-log', logObj);
-}
-
+// Folder mein files check karne ke liye
 function getUploadedFiles() {
-    if (!fs.existsSync(UPLOAD_DIR)) return [];
-    return fs.readdirSync(UPLOAD_DIR).map(file => {
-        const stats = fs.statSync(path.join(UPLOAD_DIR, file));
-        return { name: file, size: (stats.size / 1024).toFixed(1) + ' KB' };
-    });
+  if (!fs.existsSync(UPLOAD_DIR)) return [];
+  return fs.readdirSync(UPLOAD_DIR).map(file => {
+    const stats = fs.statSync(path.join(UPLOAD_DIR, file));
+    return { name: file, size: (stats.size / 1024).toFixed(1) + ' KB' };
+  });
 }
 
-function scanFileForEnvVars(filePath) {
-    if (!fs.existsSync(filePath)) return [];
-    const content = fs.readFileSync(filePath, 'utf8');
-    const varNames = new Set();
-    const regex1 = /process\.env\.([A-Z0-9_]+)/g;
-    const regex2 = /process\.env\[["']([A-Z0-9_]+)["']\]/g;
-    let match;
-    while ((match = regex1.exec(content)) !== null) varNames.add(match[1]);
-    while ((match = regex2.exec(content)) !== null) varNames.add(match[1]);
-    return Array.from(varNames);
+// Auto-detect Python ya JS file
+function detectMainFile() {
+  const files = getUploadedFiles();
+  const py = files.find(f => f.name.endsWith('.py'));
+  const js = files.find(f => f.name.endsWith('.js'));
+  return py ? py.name : (js ? js.name : null);
 }
-
-// REST APIs
-app.get('/api/files', (req, res) => {
-    res.json({ files: getUploadedFiles(), state: botState });
-});
 
 app.post('/api/upload', upload.array('files'), (req, res) => {
-    const files = req.files;
-    if (!files || files.length === 0) {
-        return res.status(400).json({ success: false, message: 'No file uploaded' });
-    }
+  mainBotFile = detectMainFile();
+  const files = getUploadedFiles();
+  io.emit('files-updated', { files, state: { mainFile: mainBotFile } });
+  res.json({ success: true, files, mainFile: mainBotFile });
+});
 
-    const allFiles = getUploadedFiles().map(f => f.name);
-    let mainFile = botState.mainFile;
-
-    if (!mainFile || !allFiles.includes(mainFile)) {
-        if (allFiles.includes('bot.js')) mainFile = 'bot.js';
-        else if (allFiles.includes('index.js')) mainFile = 'index.js';
-        else if (allFiles.includes('main.js')) mainFile = 'main.js';
-        else {
-            const jsFile = allFiles.find(f => f.endsWith('.js'));
-            if (jsFile) mainFile = jsFile;
-        }
-    }
-
-    saveState({ mainFile });
-    addLog(`Uploaded file(s): ${files.map(f => f.originalname).join(', ')}`, 'ok');
-
-    io.emit('files-updated', { files: getUploadedFiles(), state: botState });
-    res.json({ success: true, mainFile, files: getUploadedFiles() });
+app.get('/api/files', (req, res) => {
+  mainBotFile = detectMainFile();
+  res.json({ files: getUploadedFiles(), state: { mainFile: mainBotFile } });
 });
 
 app.delete('/api/files/:name', (req, res) => {
-    const filePath = path.join(UPLOAD_DIR, req.params.name);
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        addLog(`Deleted file: ${req.params.name}`, 'warn');
-        if (botState.mainFile === req.params.name) {
-            saveState({ mainFile: null });
-        }
-    }
-    io.emit('files-updated', { files: getUploadedFiles(), state: botState });
-    res.json({ success: true });
+  const filePath = path.join(UPLOAD_DIR, req.params.name);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  
+  mainBotFile = detectMainFile();
+  const files = getUploadedFiles();
+  io.emit('files-updated', { files, state: { mainFile: mainBotFile } });
+  res.json({ success: true, files, mainFile: mainBotFile });
 });
 
-// Socket.io Realtime Layer
+// Socket.io for Real-time Console
 io.on('connection', (socket) => {
-    socket.emit('init-state', {
-        state: botState,
-        isRunning: runningProcess !== null,
-        files: getUploadedFiles(),
-        logs: logHistory
-    });
+  socket.emit('init-state', {
+    files: getUploadedFiles(),
+    isRunning: !!activeProcess,
+    logs: logsHistory,
+    state: { mainFile: mainBotFile }
+  });
 
-    socket.on('deploy-bot', (data) => {
-        if (runningProcess) {
-            return addLog('⚠️ Bot is already running! Stop it first before redeploying.', 'warn');
-        }
+  socket.on('deploy-bot', ({ mainFile, envText }) => {
+    if (activeProcess) {
+      addLog('Bot pehle se hi run ho raha hai!', 'warn');
+      return;
+    }
 
-        const files = getUploadedFiles().map(f => f.name);
-        const mainFile = data.mainFile || botState.mainFile;
+    let targetFile = mainFile || detectMainFile();
 
-        if (!mainFile || !files.includes(mainFile)) {
-            addLog('❌ Deployment failed: No valid .js file found in upload directory.', 'err');
-            return io.emit('status-change', { isRunning: false, state: 'stopped' });
-        }
+    if (!targetFile) {
+      addLog('❌ Error: Upload folder mein koi .py ya .js file nahi mili!', 'err');
+      return;
+    }
 
-        saveState({ mainFile });
+    const envVars = { ...process.env };
+    if (envText) {
+      envText.split('\n').forEach(line => {
+        const [k, ...v] = line.split('=');
+        if (k && v.length) envVars[k.trim()] = v.join('=').trim();
+      });
+    }
 
-        // Parse ENV inputs
-        let customEnv = { ...process.env };
-        const envPath = path.join(UPLOAD_DIR, '.env');
-        
-        if (fs.existsSync(envPath)) {
-            try {
-                const parsedEnv = dotenv.parse(fs.readFileSync(envPath));
-                customEnv = { ...customEnv, ...parsedEnv };
-                addLog('⚙️ Loaded variables from uploaded .env file.', 'ok');
-            } catch (err) {
-                addLog(`⚠️ Error parsing .env file: ${err.message}`, 'warn');
-            }
-        }
+    const filePath = path.join(UPLOAD_DIR, targetFile);
+    const isPython = targetFile.endsWith('.py');
+    
+    // Windows vs Linux/Mac OS check for Python
+    let cmd = 'node';
+    if (isPython) {
+       cmd = process.platform === 'win32' ? 'python' : 'python3';
+    }
 
-        if (data.envText && data.envText.trim()) {
-            data.envText.split('\n').forEach(line => {
-                const parts = line.split('=');
-                if (parts.length >= 2) {
-                    customEnv[parts[0].trim()] = parts.slice(1).join('=').trim();
-                }
-            });
-            addLog('⚙️ Applied custom environment variables from input box.', 'ok');
-        }
+    addLog(`🚀 Starting ${isPython ? 'Python' : 'Node.js'} Bot: ${targetFile}`, 'sys');
 
-        // Auto Detection & Warning System
-        const requiredVars = scanFileForEnvVars(path.join(UPLOAD_DIR, mainFile));
-        const missingVars = requiredVars.filter(v => !customEnv[v]);
+    try {
+        activeProcess = spawn(cmd, [filePath], { cwd: UPLOAD_DIR, env: envVars });
+        io.emit('status-change', { isRunning: true });
 
-        if (missingVars.length > 0) {
-            addLog(`⚠️ WARNING: Code uses ${missingVars.join(', ')} but no values were provided!`, 'warn');
-        }
+        activeProcess.stdout.on('data', (data) => addLog(data.toString().trim(), 'info'));
+        activeProcess.stderr.on('data', (data) => addLog(data.toString().trim(), 'err'));
 
-        addLog(`🚀 Launching bot process: node ${mainFile}`, 'sys');
-
-        runningProcess = spawn('node', [mainFile], {
-            env: customEnv,
-            cwd: UPLOAD_DIR
+        activeProcess.on('close', (code) => {
+          addLog(`Bot ruk gaya (Exit Code: ${code})`, 'warn');
+          activeProcess = null;
+          io.emit('status-change', { isRunning: false });
         });
 
-        io.emit('status-change', { isRunning: true, state: 'running' });
-
-        runningProcess.stdout.on('data', (data) => {
-            data.toString().split('\n').forEach(line => {
-                if (line.trim()) addLog(line.trim(), 'info');
-            });
+        // Agar python system mein install nahi hai toh server crash nahi hoga
+        activeProcess.on('error', (err) => {
+          addLog(`❌ Process start fail ho gaya: ${err.message}`, 'err');
+          if (isPython) addLog(`Hint: Check karo ki Python PC/Server mein install hai ya nahi.`, 'warn');
+          activeProcess = null;
+          io.emit('status-change', { isRunning: false });
         });
 
-        runningProcess.stderr.on('data', (data) => {
-            data.toString().split('\n').forEach(line => {
-                if (line.trim()) addLog(`[STDERR] ${line.trim()}`, 'err');
-            });
-        });
+    } catch (error) {
+        addLog(`❌ Execution error: ${error.message}`, 'err');
+    }
+  });
 
-        runningProcess.on('close', (code) => {
-            addLog(`🛑 Bot process exited with code ${code}`, code === 0 ? 'info' : 'err');
-            runningProcess = null;
-            io.emit('status-change', { isRunning: false, state: 'stopped' });
-        });
-    });
+  socket.on('stop-bot', () => {
+    if (activeProcess) {
+      activeProcess.kill('SIGKILL'); // Bot ko force stop karne ke liye
+      activeProcess = null;
+      addLog('Bot ko stop kar diya gaya hai.', 'warn');
+      io.emit('status-change', { isRunning: false });
+    }
+  });
 
-    socket.on('stop-bot', () => {
-        if (runningProcess) {
-            runningProcess.kill('SIGTERM');
-            runningProcess = null;
-            addLog('🛑 Bot process manually stopped by user.', 'warn');
-            io.emit('status-change', { isRunning: false, state: 'stopped' });
-        }
-    });
-
-    socket.on('clear-logs', () => {
-        logHistory = [];
-        io.emit('logs-cleared');
-    });
+  socket.on('clear-logs', () => {
+    logsHistory = [];
+    io.emit('logs-cleared');
+  });
 });
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 KALYAN HOSTERS LIVE on port ${PORT}`);
+  console.log(`Server started at http://localhost:${PORT}`);
 });
