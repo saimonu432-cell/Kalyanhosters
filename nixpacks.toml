@@ -1,9 +1,10 @@
+providers = ["node", "python"]
+
 [phases.setup]
-nixPkgs = ["nodejs", "python311"]
+nixPkgs = ["nodejs_20", "python311"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm install", "pip install -r requirements.txt --break-system-packages"]
 
 [start]
 cmd = "node server.js"
-
